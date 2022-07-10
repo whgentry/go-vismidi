@@ -11,9 +11,11 @@ import (
 func main() {
 	defer midi.CloseDriver()
 
-	in, err := midi.FindInPort("VMPK")
+	// in, err := midi.FindInPort("")
+	in, err := midi.InPort(0)
 	if err != nil {
 		fmt.Println("can't find VMPK")
+		fmt.Print(err)
 		return
 	}
 
