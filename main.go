@@ -24,8 +24,8 @@ const NumLEDPerCol = 50
 var ledGrid leds.LEDGridInterface
 var keyboardKeys []KeyInfo
 
-var MaxVelocity = 150
-var MinVelocity = 0
+var MaxVelocity = 51
+var MinVelocity = 50
 
 func MidiToKeyboardIndex(key uint8) int {
 	if int(key) < MidiKeyboardOffset {
@@ -48,7 +48,13 @@ func GetLEDColor(row int, ki KeyInfo) leds.Color {
 	adjustedVelocity := ki.Velocity - MinVelocity
 	turnOnLED := row < (adjustedVelocity*NumLEDPerCol)/velocityRange
 	if turnOnLED {
-		return leds.White
+		if row > 2*NumLEDPerCol/3 {
+			return leds.Red
+		} else if row > NumLEDPerCol/3 {
+			return leds.Green
+		} else {
+			return leds.Blue
+		}
 	} else {
 		return leds.Off
 	}

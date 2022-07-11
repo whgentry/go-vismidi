@@ -13,14 +13,36 @@ type VirtualLEDGrid struct {
 
 var ledShape = termination.Shape{
 	"default": []string{""},
-	"on":      []string{"*"},
+	"w":       []string{"*"},
+	"r":       []string{"*"},
+	"g":       []string{"*"},
+	"b":       []string{"*"},
+}
+
+var ledColorMask = map[string][]string{
+	"default": {"w"},
+	"w":       {"w"},
+	"r":       {"r"},
+	"g":       {"g"},
+	"b":       {"b"},
 }
 
 func ledMovement(t *termination.Termination, e *termination.Entity, position termination.Position) termination.Position {
 	lg := e.Data.(*VirtualLEDGrid)
-	if lg.Grid[position.Y][position.X] > 0 {
-		e.ShapePath = "on"
-	} else {
+	color := lg.Grid[position.Y][position.X]
+
+	switch color {
+	case White:
+		e.ShapePath = "w"
+	case Red:
+		e.ShapePath = "r"
+	case Green:
+		e.ShapePath = "g"
+	case Blue:
+		e.ShapePath = "b"
+	case Off:
+		e.ShapePath = "default"
+	default:
 		e.ShapePath = "default"
 	}
 	return position
@@ -33,6 +55,7 @@ func AnimateVirtualGrid(lg *VirtualLEDGrid, framesPerSecond int) {
 		for j := range lg.Grid[i] {
 			ledEntity := lg.Term.NewEntity(termination.Position{j, i, 0})
 			ledEntity.Shape = ledShape
+			ledEntity.ColorMask = ledColorMask
 			ledEntity.MovementCallback = ledMovement
 			ledEntity.Data = lg
 		}
