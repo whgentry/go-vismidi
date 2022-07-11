@@ -13,8 +13,9 @@ import (
 )
 
 type KeyInfo struct {
-	Note     string
-	Velocity int
+	NoteName      string
+	Velocity      int
+	IsNotePressed bool
 }
 
 const MidiKeyboardOffset = 21
@@ -22,7 +23,7 @@ const KeyboardKeyCount = 88
 const NumLEDPerCol = 50
 
 var ledGrid leds.LEDGridInterface
-var keyboardKeys []KeyInfo
+var keyboardKeys []*KeyInfo
 
 var MaxVelocity = 51
 var MinVelocity = 50
@@ -43,7 +44,7 @@ func UpdateVelocityRange(vel uint8) {
 	}
 }
 
-func GetLEDColor(row int, ki KeyInfo) leds.Color {
+func GetLEDColor(row int, ki *KeyInfo) leds.Color {
 	velocityRange := MaxVelocity - MinVelocity
 	adjustedVelocity := ki.Velocity - MinVelocity
 	turnOnLED := row < (adjustedVelocity*NumLEDPerCol)/velocityRange
@@ -76,14 +77,40 @@ func UpdateFrame(ctx context.Context, refreshRate int) {
 			return
 		}
 	}
+}
 
+func LEDSmoothing(ctx context.Context) {
+	ticker := time.NewTicker(10 * time.Millisecond)
+	for {
+		select {
+		case <-ticker.C:
+			for _, ki := range keyboardKeys {
+				if !ki.IsNotePressed {
+					ki.Velocity = int(float32(ki.Velocity) * 0.98)
+				}
+			}
+			ledGrid.UpdateLEDs()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func NewKeyboard() []*KeyInfo {
+	keyboard := make([]*KeyInfo, KeyboardKeyCount)
+	for i := range keyboard {
+		keyboard[i] = &KeyInfo{
+			NoteName: string(midi.Note(i + MidiKeyboardOffset)),
+		}
+	}
+	return keyboard
 }
 
 func main() {
 	defer midi.CloseDriver()
 
 	ledGrid = leds.NewVirtualLEDGrid(NumLEDPerCol, KeyboardKeyCount)
-	keyboardKeys = make([]KeyInfo, KeyboardKeyCount)
+	keyboardKeys = NewKeyboard()
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -103,9 +130,10 @@ func main() {
 			fmt.Printf("got sysex: % X\n", bt)
 		case msg.GetNoteStart(&ch, &key, &vel):
 			keyboardKeys[MidiToKeyboardIndex(key)].Velocity = int(vel)
+			keyboardKeys[MidiToKeyboardIndex(key)].IsNotePressed = true
 			UpdateVelocityRange(vel)
 		case msg.GetNoteEnd(&ch, &key):
-			keyboardKeys[MidiToKeyboardIndex(key)].Velocity = 0
+			keyboardKeys[MidiToKeyboardIndex(key)].IsNotePressed = false
 		default:
 			// ignore
 		}
@@ -116,8 +144,11 @@ func main() {
 		return
 	}
 
-	go leds.AnimateVirtualGrid(ledGrid.(*leds.VirtualLEDGrid), 30)
-	go UpdateFrame(ctx, 30)
+	// If using virtual LED
+	go leds.AnimateVirtualGrid(ledGrid.(*leds.VirtualLEDGrid), 60)
+
+	go UpdateFrame(ctx, 60)
+	go LEDSmoothing(ctx)
 
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
