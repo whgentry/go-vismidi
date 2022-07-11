@@ -1,2 +1,10 @@
+github.com/ansoni/termination v0.0.0-20190107171503-2ca8fc1115fc h1:CYcNy+BUsiEcaByJ+V3Txs/2O4F5BCoOmiC4o0uLvnY=
+github.com/ansoni/termination v0.0.0-20190107171503-2ca8fc1115fc/go.mod h1:WhtxLTOb1yUXt5DIRg05eUgwcS+NIjw1qt9ZbZE5jbg=
+github.com/dhconnelly/rtreego v1.1.0 h1:ejMaqN03N1s6Bdg6peGkNgBnYYSBHzcK8yhSPCB+rHE=
+github.com/dhconnelly/rtreego v1.1.0/go.mod h1:SDozu0Fjy17XH1svEXJgdYq8Tah6Zjfa/4Q33Z80+KM=
+github.com/mattn/go-runewidth v0.0.9 h1:Lm995f3rfxdpd6TSmuVCHVb/QhupuXlYr8sCI/QdE+0=
+github.com/mattn/go-runewidth v0.0.9/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m2gUSrubnMI=
+github.com/nsf/termbox-go v1.1.1 h1:nksUPLCb73Q++DwbYUBEglYBRPZyoXJdrj5L+TkjyZY=
+github.com/nsf/termbox-go v1.1.1/go.mod h1:T0cTdVuOwf7pHQNtfhnEbzHbcNyCEcVU4YPpouCbVxo=
 gitlab.com/gomidi/midi/v2 v2.0.22 h1:PJ2s25rHGKmgEnB3NuO9hwkYBos4a18HVxKmANrCqtg=
 gitlab.com/gomidi/midi/v2 v2.0.22/go.mod h1:quTyMKSQ4Klevxu6gY4gy2USbeZra0fV5SalndmPfsY=

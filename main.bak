@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
-	"github.com/nsf/termbox-go"
 	"github.com/whgentry/gomidi-led/leds"
 	"gitlab.com/gomidi/midi/v2"
 	_ "gitlab.com/gomidi/midi/v2/drivers/rtmididrv" // autoregisters driver
@@ -19,39 +17,15 @@ type KeyInfo struct {
 
 const MidiKeyboardOffset = 21
 const KeyboardKeyCount = 88
-const NumLEDPerCol = 50
 
 var ledGrid leds.LEDGridInterface
 var keyboardKeys []KeyInfo
-
-var MaxVelocity = 150
-var MinVelocity = 0
 
 func MidiToKeyboardIndex(key uint8) int {
 	if int(key) < MidiKeyboardOffset {
 		return -1
 	}
 	return int(key) - MidiKeyboardOffset
-}
-
-func UpdateVelocityRange(vel uint8) {
-	if vel > uint8(MaxVelocity) {
-		MaxVelocity = int(vel)
-	}
-	if vel < uint8(MinVelocity) {
-		MinVelocity = int(vel)
-	}
-}
-
-func GetLEDColor(row int, ki KeyInfo) leds.Color {
-	velocityRange := MaxVelocity - MinVelocity
-	adjustedVelocity := ki.Velocity - MinVelocity
-	turnOnLED := row < (adjustedVelocity*NumLEDPerCol)/velocityRange
-	if turnOnLED {
-		return leds.White
-	} else {
-		return leds.Off
-	}
 }
 
 func UpdateFrame(ctx context.Context, refreshRate int) {
@@ -61,8 +35,10 @@ func UpdateFrame(ctx context.Context, refreshRate int) {
 		select {
 		case <-ticker.C:
 			for i, keyInfo := range keyboardKeys {
-				for j := 0; j < NumLEDPerCol; j++ {
-					ledGrid.SetLED(j, i, GetLEDColor(j, keyInfo))
+				if keyInfo.Velocity > 0 {
+					ledGrid.SetLED(0, i, leds.White)
+				} else {
+					ledGrid.SetLED(0, i, leds.Off)
 				}
 			}
 			ledGrid.UpdateLEDs()
@@ -76,7 +52,7 @@ func UpdateFrame(ctx context.Context, refreshRate int) {
 func main() {
 	defer midi.CloseDriver()
 
-	ledGrid = leds.NewVirtualLEDGrid(NumLEDPerCol, KeyboardKeyCount)
+	ledGrid = leds.NewVirtualLEDGrid(1, KeyboardKeyCount)
 	keyboardKeys = make([]KeyInfo, KeyboardKeyCount)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -97,7 +73,6 @@ func main() {
 			fmt.Printf("got sysex: % X\n", bt)
 		case msg.GetNoteStart(&ch, &key, &vel):
 			keyboardKeys[MidiToKeyboardIndex(key)].Velocity = int(vel)
-			UpdateVelocityRange(vel)
 		case msg.GetNoteEnd(&ch, &key):
 			keyboardKeys[MidiToKeyboardIndex(key)].Velocity = 0
 		default:
@@ -110,15 +85,17 @@ func main() {
 		return
 	}
 
-	go leds.AnimateVirtualGrid(ledGrid.(*leds.VirtualLEDGrid), 30)
-	go UpdateFrame(ctx, 30)
+	go ledGrid.AnimateVirtualGrid(20)
+	go UpdateFrame(ctx, 20)
 
+	// Wait for escape to close
+	termbox.SetInputMode(termbox.InputEsc)
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
 			if ev.Key == termbox.KeyEsc || ev.Key == termbox.KeyCtrlC {
 				cancel()
-				leds.StopVirtualGrid(ledGrid.(*leds.VirtualLEDGrid))
+				ledGrid.StopVirtualGrid()
 				stop()
 				os.Exit(0)
 			}
