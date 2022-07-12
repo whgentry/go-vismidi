@@ -1,6 +1,8 @@
 package leds
 
 import (
+	"context"
+
 	"github.com/ansoni/termination"
 )
 
@@ -48,23 +50,26 @@ func ledMovement(t *termination.Termination, e *termination.Entity, position ter
 	return position
 }
 
-func AnimateVirtualGrid(lg *VirtualLEDGrid, framesPerSecond int) {
+func AnimateVirtualGrid(ctx context.Context, lg *VirtualLEDGrid, framesPerSecond int) {
 	lg.Term = termination.New()
 	lg.Term.FramesPerSecond = framesPerSecond
 	for i := range lg.Grid {
 		for j := range lg.Grid[i] {
-			ledEntity := lg.Term.NewEntity(termination.Position{j, i, 0})
+			ledEntity := lg.Term.NewEntity(termination.Position{X: j, Y: i, Z: 0})
 			ledEntity.Shape = ledShape
 			ledEntity.ColorMask = ledColorMask
 			ledEntity.MovementCallback = ledMovement
 			ledEntity.Data = lg
 		}
 	}
-	lg.Term.Animate()
-}
+	go lg.Term.Animate()
 
-func StopVirtualGrid(lg *VirtualLEDGrid) {
-	lg.Term.Close()
+	for {
+		select {
+		case <-ctx.Done():
+			lg.Term.Close()
+		}
+	}
 }
 
 func NewVirtualLEDGrid(numRows int, numCols int) *VirtualLEDGrid {
@@ -87,6 +92,6 @@ func (lg *VirtualLEDGrid) SetLED(row int, col int, color Color) error {
 	return nil
 }
 
-func (lg *VirtualLEDGrid) UpdateLEDs() error {
+func (lg *VirtualLEDGrid) FlushFrame() error {
 	return nil
 }

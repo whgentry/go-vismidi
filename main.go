@@ -2,51 +2,23 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"time"
 
 	"github.com/nsf/termbox-go"
+	"github.com/whgentry/gomidi-led/keyboard"
 	"github.com/whgentry/gomidi-led/leds"
-	"gitlab.com/gomidi/midi/v2"
-	_ "gitlab.com/gomidi/midi/v2/drivers/rtmididrv" // autoregisters driver
 )
 
-type KeyInfo struct {
-	NoteName      string
-	Velocity      int
-	IsNotePressed bool
-}
-
-const MidiKeyboardOffset = 21
-const KeyboardKeyCount = 88
 const NumLEDPerCol = 50
+const midiPort = 0
 
 var ledGrid leds.LEDGridInterface
-var keyboardKeys []*KeyInfo
+var kboard *keyboard.Keyboard
 
-var MaxVelocity = 51
-var MinVelocity = 50
-
-func MidiToKeyboardIndex(key uint8) int {
-	if int(key) < MidiKeyboardOffset {
-		return -1
-	}
-	return int(key) - MidiKeyboardOffset
-}
-
-func UpdateVelocityRange(vel uint8) {
-	if vel > uint8(MaxVelocity) {
-		MaxVelocity = int(vel)
-	}
-	if vel < uint8(MinVelocity) {
-		MinVelocity = int(vel)
-	}
-}
-
-func GetLEDColor(row int, ki *KeyInfo) leds.Color {
-	velocityRange := MaxVelocity - MinVelocity
-	adjustedVelocity := ki.Velocity - MinVelocity
+func GetLEDColor(row int, ki *keyboard.KeyInfo) leds.Color {
+	velocityRange := kboard.MaxVelocity - kboard.MinVelocity
+	adjustedVelocity := ki.Velocity - kboard.MinVelocity
 	turnOnLED := row < (adjustedVelocity*NumLEDPerCol)/velocityRange
 	if turnOnLED {
 		if row > 2*NumLEDPerCol/3 {
@@ -61,20 +33,10 @@ func GetLEDColor(row int, ki *KeyInfo) leds.Color {
 	}
 }
 
-func UpdateFrame(ctx context.Context, refreshRate int) {
-	frameDurationMs := 1000 / refreshRate
-	ticker := time.NewTicker(time.Duration(frameDurationMs) * time.Millisecond)
-	for {
-		select {
-		case <-ticker.C:
-			for i, keyInfo := range keyboardKeys {
-				for j := 0; j < NumLEDPerCol; j++ {
-					ledGrid.SetLED(j, i, GetLEDColor(j, keyInfo))
-				}
-			}
-			ledGrid.UpdateLEDs()
-		case <-ctx.Done():
-			return
+func UpdateFrame(lg leds.LEDGridInterface) {
+	for i, keyInfo := range kboard.Keys {
+		for j := 0; j < NumLEDPerCol; j++ {
+			lg.SetLED(j, i, GetLEDColor(j, keyInfo))
 		}
 	}
 }
@@ -84,70 +46,29 @@ func LEDSmoothing(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			for _, ki := range keyboardKeys {
+			for _, ki := range kboard.Keys {
 				if !ki.IsNotePressed {
 					ki.Velocity = int(float32(ki.Velocity) * 0.98)
 				}
 			}
-			ledGrid.UpdateLEDs()
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func NewKeyboard() []*KeyInfo {
-	keyboard := make([]*KeyInfo, KeyboardKeyCount)
-	for i := range keyboard {
-		keyboard[i] = &KeyInfo{
-			NoteName: string(midi.Note(i + MidiKeyboardOffset)),
-		}
-	}
-	return keyboard
-}
-
 func main() {
-	defer midi.CloseDriver()
-
-	ledGrid = leds.NewVirtualLEDGrid(NumLEDPerCol, KeyboardKeyCount)
-	keyboardKeys = NewKeyboard()
-
 	ctx, cancel := context.WithCancel(context.Background())
 
-	in, err := midi.InPort(0)
-	if err != nil {
-		fmt.Print(err.Error())
-		return
-	}
-
-	fmt.Print("MIDI Device Connected")
-
-	stop, err := midi.ListenTo(in, func(msg midi.Message, timestampms int32) {
-		var bt []byte
-		var ch, key, vel uint8
-		switch {
-		case msg.GetSysEx(&bt):
-			fmt.Printf("got sysex: % X\n", bt)
-		case msg.GetNoteStart(&ch, &key, &vel):
-			keyboardKeys[MidiToKeyboardIndex(key)].Velocity = int(vel)
-			keyboardKeys[MidiToKeyboardIndex(key)].IsNotePressed = true
-			UpdateVelocityRange(vel)
-		case msg.GetNoteEnd(&ch, &key):
-			keyboardKeys[MidiToKeyboardIndex(key)].IsNotePressed = false
-		default:
-			// ignore
-		}
-	}, midi.UseSysEx())
-
-	if err != nil {
-		fmt.Printf("ERROR: %s\n", err)
-		return
-	}
+	ledGrid = leds.NewVirtualLEDGrid(NumLEDPerCol, keyboard.KeyboardKeyCount)
+	kboard = keyboard.NewKeyboard()
 
 	// If using virtual LED
-	go leds.AnimateVirtualGrid(ledGrid.(*leds.VirtualLEDGrid), 60)
+	go leds.AnimateVirtualGrid(ctx, ledGrid.(*leds.VirtualLEDGrid), 60)
 
-	go UpdateFrame(ctx, 60)
+	go keyboard.HandleMidi(ctx, kboard, midiPort)
+	go leds.HandleRefresh(ctx, ledGrid, 60, UpdateFrame)
+
 	go LEDSmoothing(ctx)
 
 	for {
@@ -155,8 +76,6 @@ func main() {
 		case termbox.EventKey:
 			if ev.Key == termbox.KeyEsc || ev.Key == termbox.KeyCtrlC {
 				cancel()
-				leds.StopVirtualGrid(ledGrid.(*leds.VirtualLEDGrid))
-				stop()
 				os.Exit(0)
 			}
 		}
