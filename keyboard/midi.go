@@ -3,6 +3,7 @@ package keyboard
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gitlab.com/gomidi/midi/v2"
 	"gitlab.com/gomidi/midi/v2/drivers"
@@ -27,9 +28,11 @@ func HandleMidi(ctx context.Context, kboard *Keyboard, port int) {
 		case msg.GetNoteStart(&ch, &key, &vel):
 			kboard.Keys[MidiToKeyboardIndex(key)].Velocity = int(vel)
 			kboard.Keys[MidiToKeyboardIndex(key)].IsNotePressed = true
+			kboard.Keys[MidiToKeyboardIndex(key)].StartTime = time.Now()
 			kboard.UpdateVelocityRange(vel)
 		case msg.GetNoteEnd(&ch, &key):
 			kboard.Keys[MidiToKeyboardIndex(key)].IsNotePressed = false
+			kboard.Keys[MidiToKeyboardIndex(key)].ReleaseTime = time.Now()
 		default:
 			// ignore
 		}
