@@ -10,16 +10,21 @@ import (
 	"github.com/whgentry/gomidi-led/leds"
 )
 
-const NumLEDPerCol = 50
+const NumLEDPerCol = 80
 const midiPort = 0
 
 var ledGrid leds.LEDGridInterface
 var kboard *keyboard.Keyboard
 var animation animations.Animation
+var animationName string = "velocity-bar"
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	animationctx, cancelAnimation := context.WithCancel(context.Background())
+
+	if len(os.Args) > 1 {
+		animationName = os.Args[1]
+	}
 
 	// Input and output structures
 	ledGrid = leds.NewVirtualLEDGrid(NumLEDPerCol, keyboard.KeyCount)
@@ -27,8 +32,8 @@ func main() {
 
 	// Animation handling
 	animations.Initialize(NumLEDPerCol, keyboard.KeyCount, kboard)
-	animation = animations.GetAnimation("velocity-bar")
-	animation.Run(animationctx)
+	animation = animations.GetAnimation(animationName)
+	go animation.Run(animationctx)
 
 	// If using virtual LED
 	go leds.AnimateVirtualGrid(ctx, ledGrid.(*leds.VirtualLEDGrid), 60)
