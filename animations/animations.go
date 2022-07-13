@@ -2,6 +2,7 @@ package animations
 
 import (
 	"context"
+	"time"
 
 	"github.com/whgentry/gomidi-led/keyboard"
 	"github.com/whgentry/gomidi-led/leds"
@@ -13,17 +14,21 @@ type PixelState struct {
 }
 
 type Animation interface {
-	FrameHandler(lg leds.LEDGridInterface)
 	Run(ctx context.Context)
 }
 
 var kboard *keyboard.Keyboard
 var animations map[string]Animation
+var active Animation
 var numRows int
 var numCols int
 var pixels [][]*PixelState
+var cancelActive func() = nil
+var ctx context.Context = nil
+var frameDuration time.Duration
 
-func Initialize(rows int, cols int, k *keyboard.Keyboard) {
+func Initialize(rows int, cols int, rate int, k *keyboard.Keyboard) {
+	frameDuration = time.Second / time.Duration(rate)
 	numRows = rows
 	numCols = cols
 	kboard = k
@@ -41,6 +46,27 @@ func Initialize(rows int, cols int, k *keyboard.Keyboard) {
 	}
 }
 
-func GetAnimation(name string) Animation {
-	return animations[name]
+func FrameHandler(lg leds.LEDGridInterface) {
+	for i := range pixels {
+		for j := range pixels[i] {
+			lg.SetLED(i, j, pixels[i][j].Color)
+		}
+	}
+}
+
+func SetAnimation(name string) {
+	if ctx != nil {
+		cancelActive()
+	}
+
+	active = animations[name]
+	ctx, cancelActive = context.WithCancel(context.Background())
+	go active.Run(ctx)
+}
+
+func Stop() {
+	if ctx != nil {
+		cancelActive()
+		ctx = nil
+	}
 }

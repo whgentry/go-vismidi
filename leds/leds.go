@@ -12,12 +12,12 @@ var (
 
 type LEDGridInterface interface {
 	SetLED(row int, col int, color Color) error
+	ClearFrame() error
 	FlushFrame() error
 }
 
 func HandleRefresh(ctx context.Context, lg LEDGridInterface, refreshRate int, frameFunc func(LEDGridInterface)) {
-	frameDurationMs := 1000 / refreshRate
-	ticker := time.NewTicker(time.Duration(frameDurationMs) * time.Millisecond)
+	ticker := time.NewTicker(time.Second / time.Duration(refreshRate))
 	for {
 		select {
 		case <-ticker.C:

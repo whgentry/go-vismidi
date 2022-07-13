@@ -95,3 +95,12 @@ func (lg *VirtualLEDGrid) SetLED(row int, col int, color Color) error {
 func (lg *VirtualLEDGrid) FlushFrame() error {
 	return nil
 }
+
+func (lg *VirtualLEDGrid) ClearFrame() error {
+	for i := range lg.Grid {
+		for j := range lg.Grid[i] {
+			lg.Grid[i][j] = Off
+		}
+	}
+	return nil
+}
