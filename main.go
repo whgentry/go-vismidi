@@ -43,7 +43,10 @@ func main() {
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
-			if ev.Key == termbox.KeyEsc || ev.Key == termbox.KeyCtrlC {
+			switch ev.Key {
+			case termbox.KeySpace:
+				animations.RotateAnimation()
+			case termbox.KeyEsc, termbox.KeyCtrlC:
 				cancel()
 				animations.Stop()
 				os.Exit(0)

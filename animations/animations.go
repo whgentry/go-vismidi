@@ -19,13 +19,18 @@ type Animation interface {
 
 var kboard *keyboard.Keyboard
 var animations map[string]Animation
-var active Animation
+var activeAnimationName string
 var numRows int
 var numCols int
 var pixels [][]*PixelState
 var cancelActive func() = nil
 var ctx context.Context = nil
 var frameDuration time.Duration
+
+func (ps *PixelState) Clear() {
+	ps.Color = leds.Off
+	ps.Intensity = 0
+}
 
 func Initialize(rows int, cols int, rate int, k *keyboard.Keyboard) {
 	frameDuration = time.Second / time.Duration(rate)
@@ -59,14 +64,28 @@ func SetAnimation(name string) {
 		cancelActive()
 	}
 
-	active = animations[name]
+	activeAnimationName = name
 	ctx, cancelActive = context.WithCancel(context.Background())
-	go active.Run(ctx)
+	go animations[activeAnimationName].Run(ctx)
+}
+
+func RotateAnimation() {
+	Stop()
+	if activeAnimationName == "velocity-bar" {
+		SetAnimation("flowing-notes")
+	} else {
+		SetAnimation("velocity-bar")
+	}
 }
 
 func Stop() {
 	if ctx != nil {
 		cancelActive()
 		ctx = nil
+		for i := range pixels {
+			for _, ps := range pixels[i] {
+				ps.Clear()
+			}
+		}
 	}
 }
