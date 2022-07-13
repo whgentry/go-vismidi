@@ -10,7 +10,7 @@ import (
 	"github.com/whgentry/gomidi-led/leds"
 )
 
-const NumLEDPerCol = 80
+const NumLEDPerCol = 70
 const midiPort = 0
 
 var ledGrid leds.LEDGridInterface
