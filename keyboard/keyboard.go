@@ -69,8 +69,8 @@ func (ki *KeyInfo) GetAdjustedVelocity() int {
 	return ki.Velocity - ki.Keyboard.MinVelocity
 }
 
-func (ki *KeyInfo) GetAdjustedVelocityRatio() float32 {
-	velocityRange := float32(ki.Keyboard.GetVelocityRange())
-	adjustedVelocity := float32(ki.GetAdjustedVelocity())
+func (ki *KeyInfo) GetAdjustedVelocityRatio() float64 {
+	velocityRange := float64(ki.Keyboard.GetVelocityRange())
+	adjustedVelocity := float64(ki.GetAdjustedVelocity())
 	return adjustedVelocity / velocityRange
 }

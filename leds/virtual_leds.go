@@ -1,35 +1,32 @@
 package leds
 
 import (
+	"github.com/lucasb-eyer/go-colorful"
 	"github.com/nsf/termbox-go"
 )
-
-type VirtualLED struct {
-	Color Color
-}
 
 type VirtualLEDGrid struct {
 	NumRows int
 	NumCols int
-	Grid    [][]*VirtualLED
+	Grid    [][]*LED
 }
 
 func NewVirtualLEDGrid(numRows int, numCols int) *VirtualLEDGrid {
 	ledGrid := &VirtualLEDGrid{
 		NumRows: numRows,
 		NumCols: numCols,
-		Grid:    make([][]*VirtualLED, numRows),
+		Grid:    make([][]*LED, numRows),
 	}
 	for i := range ledGrid.Grid {
-		ledGrid.Grid[i] = make([]*VirtualLED, numCols)
+		ledGrid.Grid[i] = make([]*LED, numCols)
 		for j := range ledGrid.Grid[i] {
-			ledGrid.Grid[i][j] = &VirtualLED{}
+			ledGrid.Grid[i][j] = &LED{}
 		}
 	}
 	return ledGrid
 }
 
-func (lg *VirtualLEDGrid) SetLED(row int, col int, color Color) error {
+func (lg *VirtualLEDGrid) SetLED(row int, col int, color colorful.Color) error {
 	if row < 0 || row > lg.NumRows || col < 0 || col > lg.NumCols {
 		return ErrLEDOutOfBounds
 	}
@@ -42,13 +39,10 @@ func (lg *VirtualLEDGrid) FlushFrame() error {
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 	for i := range lg.Grid {
 		for j, led := range lg.Grid[i] {
-			if led.Color != Off {
-				// fg := termbox.Attribute(led.Color)
-				fg := termbox.RGBToAttribute(
-					uint8(led.Color>>16&0xFF),
-					uint8(led.Color>>8&0xFF),
-					uint8(led.Color&0xFF))
-				bg := termbox.Attribute(Off)
+			if !IsColorOff(led.Color) {
+				r, g, b := led.Color.RGB255()
+				fg := termbox.RGBToAttribute(r, g, b)
+				bg := termbox.Attribute(termbox.ColorDefault)
 				termbox.SetCell(j, i, '*', fg, bg)
 			}
 		}
@@ -60,7 +54,7 @@ func (lg *VirtualLEDGrid) FlushFrame() error {
 func (lg *VirtualLEDGrid) ClearFrame() error {
 	for i := range lg.Grid {
 		for _, led := range lg.Grid[i] {
-			led.Color = Off
+			led.Color = ColorOff()
 		}
 	}
 	return nil

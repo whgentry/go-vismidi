@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/lucasb-eyer/go-colorful"
 	"github.com/whgentry/gomidi-led/leds"
 )
 
@@ -29,15 +30,9 @@ func (a *FlowingNotesAnimation) Run(ctx context.Context) {
 					}
 					// Sets pixel color based on intensity
 					if ps.Intensity > 0 {
-						if ps.Intensity > 0.66 {
-							ps.Color = leds.Red
-						} else if ps.Intensity > 0.33 {
-							ps.Color = leds.Green
-						} else {
-							ps.Color = leds.Blue
-						}
+						ps.Color = colorful.Hsv(360*ps.Intensity, 1, 1)
 					} else {
-						ps.Color = leds.Off
+						ps.Color = leds.ColorOff()
 					}
 				}
 			}

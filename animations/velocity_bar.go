@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/lucasb-eyer/go-colorful"
 	"github.com/whgentry/gomidi-led/leds"
 )
 
@@ -17,23 +18,17 @@ func (a *VelocityBarAnimation) Run(ctx context.Context) {
 		case <-frameTicker.C:
 			for row := range pixels {
 				for col, ps := range pixels[row] {
-					// Determine led color on intensity
-					if row < int(ps.Intensity*float32(numRows)) {
-						if row > 2*numRows/3 {
-							ps.Color = leds.Red
-						} else if row > numRows/3 {
-							ps.Color = leds.Green
-						} else {
-							ps.Color = leds.Blue
-						}
-					} else {
-						ps.Color = leds.Off
-					}
 					// Decay Intensity Exponentially
 					if kboard.Keys[col].IsNotePressed {
 						ps.Intensity = kboard.Keys[col].GetAdjustedVelocityRatio()
 					} else {
 						ps.Intensity *= 0.95
+					}
+					// Determine led color on intensity
+					if row >= int(ps.Intensity*float64(numRows)) {
+						ps.Color = leds.ColorOff()
+					} else if kboard.Keys[col].IsNotePressed {
+						ps.Color = colorful.Hsv(360*ps.Intensity, 1, 1)
 					}
 				}
 			}

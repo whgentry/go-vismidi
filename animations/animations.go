@@ -4,13 +4,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/lucasb-eyer/go-colorful"
 	"github.com/whgentry/gomidi-led/keyboard"
 	"github.com/whgentry/gomidi-led/leds"
 )
 
 type PixelState struct {
-	Color     leds.Color
-	Intensity float32
+	Color     colorful.Color
+	Intensity float64
 }
 
 type Animation interface {
@@ -28,7 +29,7 @@ var ctx context.Context = nil
 var frameDuration time.Duration
 
 func (ps *PixelState) Clear() {
-	ps.Color = leds.Off
+	ps.Color = colorful.Color{0, 0, 0}
 	ps.Intensity = 0
 }
 
