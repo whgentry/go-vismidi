@@ -43,8 +43,9 @@ func (lg *VirtualLEDGrid) FlushFrame() error {
 				r, g, b := led.Color.RGB255()
 				fg := termbox.RGBToAttribute(r, g, b)
 				bg := termbox.Attribute(termbox.ColorDefault)
-				termbox.SetCell(j*2, i, '*', fg, bg)
-				termbox.SetCell(j*2+1, i, '*', fg, bg)
+				_, height := termbox.Size()
+				termbox.SetCell(j*2, height-i, '*', fg, bg)
+				termbox.SetCell(j*2+1, height-i, '*', fg, bg)
 			}
 		}
 	}
