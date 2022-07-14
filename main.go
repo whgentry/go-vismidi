@@ -10,9 +10,8 @@ import (
 	"github.com/whgentry/gomidi-led/leds"
 )
 
-const NumLEDPerCol = 70
-const midiPort = 0
-
+var midiPort = 0
+var NumLEDPerCol = 70
 var ledGrid leds.LEDGridInterface
 var kboard *keyboard.Keyboard
 var animationName string = "velocity-bar"
@@ -25,6 +24,14 @@ func main() {
 		animationName = os.Args[1]
 	}
 
+	err := termbox.Init()
+	if err != nil {
+		os.Exit(1)
+	}
+	defer termbox.Close()
+
+	_, NumLEDPerCol = termbox.Size()
+
 	// Input and output structures
 	ledGrid = leds.NewVirtualLEDGrid(NumLEDPerCol, keyboard.KeyCount)
 	kboard = keyboard.NewKeyboard()
@@ -33,13 +40,11 @@ func main() {
 	animations.Initialize(NumLEDPerCol, keyboard.KeyCount, frameRate, kboard)
 	animations.SetAnimation(animationName)
 
-	// If using virtual LED
-	go leds.AnimateVirtualGrid(ctx, ledGrid.(*leds.VirtualLEDGrid), frameRate)
-
 	// Core functionality routines
 	go keyboard.HandleMidi(ctx, kboard, midiPort)
 	go leds.HandleRefresh(ctx, ledGrid, 60, animations.FrameHandler)
 
+	termbox.SetInputMode(termbox.InputEsc)
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:

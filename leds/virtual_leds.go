@@ -1,9 +1,7 @@
 package leds
 
 import (
-	"context"
-
-	"github.com/ansoni/termination"
+	"github.com/nsf/termbox-go"
 )
 
 type VirtualLED struct {
@@ -14,64 +12,6 @@ type VirtualLEDGrid struct {
 	NumRows int
 	NumCols int
 	Grid    [][]*VirtualLED
-	Term    *termination.Termination
-}
-
-var ledShape = termination.Shape{
-	"default": []string{""},
-	"w":       []string{"**"},
-	"r":       []string{"**"},
-	"g":       []string{"**"},
-	"b":       []string{"**"},
-}
-
-var ledColorMask = map[string][]string{
-	"default": {"ww"},
-	"w":       {"ww"},
-	"r":       {"rr"},
-	"g":       {"gg"},
-	"b":       {"bb"},
-}
-
-func ledMovement(t *termination.Termination, e *termination.Entity, position termination.Position) termination.Position {
-	led := e.Data.(*VirtualLED)
-
-	switch led.Color {
-	case White:
-		e.ShapePath = "w"
-	case Red:
-		e.ShapePath = "r"
-	case Green:
-		e.ShapePath = "g"
-	case Blue:
-		e.ShapePath = "b"
-	case Off:
-		e.ShapePath = "default"
-	default:
-		e.ShapePath = "default"
-	}
-	return position
-}
-
-func AnimateVirtualGrid(ctx context.Context, lg *VirtualLEDGrid, framesPerSecond int) {
-	lg.Term = termination.New()
-	lg.Term.FramesPerSecond = framesPerSecond
-	for i := range lg.Grid {
-		for j, led := range lg.Grid[i] {
-			ledEntity := lg.Term.NewEntity(termination.Position{
-				X: j * 2,
-				Y: lg.Term.Height - i,
-				Z: 0,
-			})
-			ledEntity.Shape = ledShape
-			ledEntity.ColorMask = ledColorMask
-			ledEntity.MovementCallback = ledMovement
-			ledEntity.Data = led
-		}
-	}
-	go lg.Term.Animate()
-	<-ctx.Done()
-	lg.Term.Close()
 }
 
 func NewVirtualLEDGrid(numRows int, numCols int) *VirtualLEDGrid {
@@ -98,6 +38,22 @@ func (lg *VirtualLEDGrid) SetLED(row int, col int, color Color) error {
 }
 
 func (lg *VirtualLEDGrid) FlushFrame() error {
+	termbox.SetOutputMode(termbox.OutputRGB)
+	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+	for i := range lg.Grid {
+		for j, led := range lg.Grid[i] {
+			if led.Color != Off {
+				// fg := termbox.Attribute(led.Color)
+				fg := termbox.RGBToAttribute(
+					uint8(led.Color>>16&0xFF),
+					uint8(led.Color>>8&0xFF),
+					uint8(led.Color&0xFF))
+				bg := termbox.Attribute(Off)
+				termbox.SetCell(j, i, '*', fg, bg)
+			}
+		}
+	}
+	termbox.Flush()
 	return nil
 }
 
