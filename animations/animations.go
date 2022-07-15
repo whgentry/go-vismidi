@@ -2,6 +2,7 @@ package animations
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/lucasb-eyer/go-colorful"
@@ -14,22 +15,39 @@ type PixelState struct {
 	Intensity float64
 }
 
-type Animation interface {
-	Run(ctx context.Context)
+type Animation struct {
+	Name        string
+	Key         string
+	Description string
+	Run         func(ctx context.Context)
 }
 
-var kboard *keyboard.Keyboard
-var animations map[string]Animation
-var activeAnimationName string
-var numRows int
-var numCols int
-var pixels [][]*PixelState
-var cancelActive func() = nil
-var ctx context.Context = nil
-var frameDuration time.Duration
+var (
+	kboard        *keyboard.Keyboard
+	numRows       int
+	numCols       int
+	pixels        [][]*PixelState
+	frameDuration time.Duration
+
+	cancelActive  func()          = func() {}
+	ctxActive     context.Context = nil
+	cancelControl func()          = func() {}
+	ctxControl    context.Context = nil
+
+	wg                   sync.WaitGroup
+	activeAnimationIndex int
+	activeAnimationChan  chan int
+	stopAnimation        chan bool
+)
+
+var animations = []*Animation{
+	VelocityBar,
+	VelocityBarMirror,
+	FlowingNotes,
+}
 
 func (ps *PixelState) Clear() {
-	ps.Color = colorful.Color{0, 0, 0}
+	ps.Color = colorful.Color{R: 0, G: 0, B: 0}
 	ps.Intensity = 0
 }
 
@@ -46,10 +64,45 @@ func Initialize(rows int, cols int, rate int, k *keyboard.Keyboard) {
 		}
 	}
 
-	animations = map[string]Animation{
-		"velocity-bar":  &VelocityBarAnimation{},
-		"flowing-notes": &FlowingNotesAnimation{},
+	activeAnimationChan = make(chan int)
+	ctxControl, cancelControl = context.WithCancel(context.Background())
+	go HandleAnimationControl(ctxControl)
+}
+
+func Close() {
+	cancelControl()
+}
+
+func HandleAnimationControl(ctx context.Context) {
+	stop := func() {
+		if ctxActive != nil {
+			wg.Add(1)
+			cancelActive()
+			wg.Wait()
+			ctxActive = nil
+			for i := range pixels {
+				for _, ps := range pixels[i] {
+					ps.Clear()
+				}
+			}
+		}
 	}
+	for {
+		select {
+		case <-stopAnimation:
+			stop()
+		case activeAnimationIndex = <-activeAnimationChan:
+			stop()
+			ctxActive, cancelActive = context.WithCancel(ctxControl)
+			go animations[activeAnimationIndex].Run(ctxActive)
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func StopAnimation() {
+	stopAnimation <- true
 }
 
 func FrameHandler(lg leds.LEDGridInterface) {
@@ -60,33 +113,25 @@ func FrameHandler(lg leds.LEDGridInterface) {
 	}
 }
 
-func SetAnimation(name string) {
-	if ctx != nil {
-		cancelActive()
-	}
-
-	activeAnimationName = name
-	ctx, cancelActive = context.WithCancel(context.Background())
-	go animations[activeAnimationName].Run(ctx)
-}
-
-func RotateAnimation() {
-	Stop()
-	if activeAnimationName == "velocity-bar" {
-		SetAnimation("flowing-notes")
-	} else {
-		SetAnimation("velocity-bar")
+func SetAnimationByIndex(index int) {
+	if index >= 0 && index < len(animations) {
+		activeAnimationChan <- index
 	}
 }
 
-func Stop() {
-	if ctx != nil {
-		cancelActive()
-		ctx = nil
-		for i := range pixels {
-			for _, ps := range pixels[i] {
-				ps.Clear()
-			}
+func SetAnimationByName(name string) {
+	for i, animation := range animations {
+		if animation.Key == name {
+			activeAnimationChan <- i
+			break
 		}
 	}
+}
+
+func PreviousAnimation() {
+	activeAnimationChan <- (activeAnimationIndex + len(animations) - 1) % len(animations)
+}
+
+func NextAnimation() {
+	activeAnimationChan <- (activeAnimationIndex + 1) % len(animations)
 }

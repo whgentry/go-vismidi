@@ -14,15 +14,11 @@ var midiPort = 0
 var NumLEDPerCol = 70
 var ledGrid leds.LEDGridInterface
 var kboard *keyboard.Keyboard
-var animationName string = "velocity-bar"
 var frameRate = 60
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	if len(os.Args) > 1 {
-		animationName = os.Args[1]
-	}
+	defer cancel()
 
 	err := termbox.Init()
 	if err != nil {
@@ -38,7 +34,8 @@ func main() {
 
 	// Animation handling
 	animations.Initialize(NumLEDPerCol, keyboard.KeyCount, frameRate, kboard)
-	animations.SetAnimation(animationName)
+	defer animations.Close()
+	animations.SetAnimationByIndex(0)
 
 	// Core functionality routines
 	go keyboard.HandleMidi(ctx, kboard, midiPort)
@@ -49,11 +46,11 @@ func main() {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
 			switch ev.Key {
-			case termbox.KeySpace:
-				animations.RotateAnimation()
+			case termbox.KeyArrowRight, termbox.KeySpace:
+				animations.NextAnimation()
+			case termbox.KeyArrowLeft:
+				animations.PreviousAnimation()
 			case termbox.KeyEsc, termbox.KeyCtrlC:
-				cancel()
-				animations.Stop()
 				os.Exit(0)
 			}
 		}
