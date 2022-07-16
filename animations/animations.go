@@ -10,16 +10,24 @@ import (
 	"github.com/whgentry/gomidi-led/leds"
 )
 
+type RunFunc func(ctx context.Context, settings Settings)
+
 type PixelState struct {
 	Color     colorful.Color
 	Intensity float64
+}
+
+type Settings struct {
+	LowerColor colorful.Color
+	UpperColor colorful.Color
 }
 
 type Animation struct {
 	Name        string
 	Key         string
 	Description string
-	Run         func(ctx context.Context)
+	Settings    Settings
+	Run         RunFunc
 }
 
 var (
@@ -38,6 +46,8 @@ var (
 	activeAnimationIndex int
 	activeAnimationChan  chan int
 	stopAnimation        chan bool
+
+	CommonSettings Settings
 )
 
 var animations = []*Animation{
@@ -62,6 +72,15 @@ func Initialize(rows int, cols int, rate int, k *keyboard.Keyboard) {
 		for j := range pixels[i] {
 			pixels[i][j] = &PixelState{}
 		}
+	}
+
+	// Initialize Settings
+	CommonSettings = Settings{
+		LowerColor: colorful.FastLinearRgb(0, 1, 0),
+		UpperColor: colorful.FastLinearRgb(1, 0, 0),
+	}
+	for _, animation := range animations {
+		animation.Settings = CommonSettings
 	}
 
 	activeAnimationChan = make(chan int)
@@ -94,7 +113,7 @@ func HandleAnimationControl(ctx context.Context) {
 		case activeAnimationIndex = <-activeAnimationChan:
 			stop()
 			ctxActive, cancelActive = context.WithCancel(ctxControl)
-			go animations[activeAnimationIndex].Run(ctxActive)
+			go animations[activeAnimationIndex].Run(ctxActive, animations[activeAnimationIndex].Settings)
 		case <-ctx.Done():
 			return
 		}

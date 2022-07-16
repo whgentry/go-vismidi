@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/lucasb-eyer/go-colorful"
 	"github.com/whgentry/gomidi-led/leds"
 )
 
@@ -12,7 +11,7 @@ var FlowingNotes = &Animation{
 	Name:        "Flowing Notes",
 	Key:         "flowing-notes",
 	Description: "Notes flow from the bottom upwards",
-	Run: func(ctx context.Context) {
+	Run: func(ctx context.Context, settings Settings) {
 		defer wg.Done()
 		speed := time.NewTicker(50 * time.Millisecond)
 		for {
@@ -32,7 +31,7 @@ var FlowingNotes = &Animation{
 						}
 						// Sets pixel color based on intensity
 						if ps.Intensity > 0 {
-							ps.Color = colorful.Hsv(360*ps.Intensity, 1, 1)
+							ps.Color = settings.LowerColor.BlendHsv(settings.UpperColor, ps.Intensity)
 						} else {
 							ps.Color = leds.ColorOff()
 						}
