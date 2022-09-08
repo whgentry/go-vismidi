@@ -5,33 +5,33 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lucasb-eyer/go-colorful"
-	"github.com/whgentry/gomidi-led/keyboard"
-	"github.com/whgentry/gomidi-led/leds"
+	colorful "github.com/lucasb-eyer/go-colorful"
+	"github.com/whgentry/gomidi-led/control"
+	"github.com/whgentry/gomidi-led/midi"
 )
-
-type RunFunc func(ctx context.Context, settings Settings)
 
 type PixelState struct {
 	Color     colorful.Color
 	Intensity float64
 }
 
-type Settings struct {
+type CommonSettings struct {
 	LowerColor colorful.Color
 	UpperColor colorful.Color
 }
 
+type Settings struct {
+	CommonSettings
+}
+
 type Animation struct {
 	Name        string
-	Key         string
 	Description string
 	Settings    Settings
-	Run         RunFunc
 }
 
 var (
-	kboard        *keyboard.Keyboard
+	kboard        *midi.MIDIState
 	numRows       int
 	numCols       int
 	pixels        [][]*PixelState
@@ -47,21 +47,26 @@ var (
 	activeAnimationChan  chan int
 	stopAnimation        chan bool
 
-	CommonSettings Settings
-)
+	DefaultCommonSettings = CommonSettings{
+		LowerColor: colorful.FastLinearRgb(0, 1, 0),
+		UpperColor: colorful.FastLinearRgb(1, 0, 0),
+	}
 
-var animations = []*Animation{
-	VelocityBar,
-	VelocityBarMirror,
-	FlowingNotes,
-}
+	Animations = []control.ProcessInterface[midi.MIDIEvent, any]{
+		VelocityBar,
+		VelocityBarMirror,
+		FlowingNotes,
+	}
+
+	MIDIState = midi.NewMIDIState()
+)
 
 func (ps *PixelState) Clear() {
 	ps.Color = colorful.Color{R: 0, G: 0, B: 0}
 	ps.Intensity = 0
 }
 
-func Initialize(rows int, cols int, rate int, k *keyboard.Keyboard) {
+func Initialize(rows int, cols int, rate int, k *midi.MIDIState) {
 	frameDuration = time.Second / time.Duration(rate)
 	numRows = rows
 	numCols = cols
@@ -74,83 +79,74 @@ func Initialize(rows int, cols int, rate int, k *keyboard.Keyboard) {
 		}
 	}
 
-	// Initialize Settings
-	CommonSettings = Settings{
-		LowerColor: colorful.FastLinearRgb(0, 1, 0),
-		UpperColor: colorful.FastLinearRgb(1, 0, 0),
-	}
-	for _, animation := range animations {
-		animation.Settings = CommonSettings
-	}
-
-	activeAnimationChan = make(chan int)
-	ctxControl, cancelControl = context.WithCancel(context.Background())
-	go HandleAnimationControl(ctxControl)
+	// activeAnimationChan = make(chan int)
+	// ctxControl, cancelControl = context.WithCancel(context.Background())
+	// go HandleAnimationControl(ctxControl)
 }
 
-func Close() {
-	cancelControl()
-}
+// func Close() {
+// 	cancelControl()
+// }
 
-func HandleAnimationControl(ctx context.Context) {
-	stop := func() {
-		if ctxActive != nil {
-			wg.Add(1)
-			cancelActive()
-			wg.Wait()
-			ctxActive = nil
-			for i := range pixels {
-				for _, ps := range pixels[i] {
-					ps.Clear()
-				}
-			}
-		}
-	}
-	for {
-		select {
-		case <-stopAnimation:
-			stop()
-		case activeAnimationIndex = <-activeAnimationChan:
-			stop()
-			ctxActive, cancelActive = context.WithCancel(ctxControl)
-			go animations[activeAnimationIndex].Run(ctxActive, animations[activeAnimationIndex].Settings)
-		case <-ctx.Done():
-			return
-		}
-	}
-}
+// func HandleAnimationControl(ctx context.Context) {
+// 	stop := func() {
+// 		if ctxActive != nil {
+// 			wg.Add(1)
+// 			cancelActive()
+// 			wg.Wait()
+// 			ctxActive = nil
+// 			for i := range pixels {
+// 				for _, ps := range pixels[i] {
+// 					ps.Clear()
+// 				}
+// 			}
+// 		}
+// 	}
+// 	for {
+// 		select {
+// 		case <-stopAnimation:
+// 			stop()
+// 		case activeAnimationIndex = <-activeAnimationChan:
+// 			stop()
+// 			ctxActive, cancelActive = context.WithCancel(ctxControl)
+// 			go animations[activeAnimationIndex].Run(ctxActive, animations[activeAnimationIndex].Settings)
+// 		case <-ctx.Done():
+// 			return
+// 		}
+// 	}
+// }
 
-func StopAnimation() {
-	stopAnimation <- true
-}
+// func StopAnimation() {
+// 	stopAnimation <- true
+// }
 
-func FrameHandler(lg leds.LEDGridInterface) {
-	for i := range pixels {
-		for j := range pixels[i] {
-			lg.SetLED(i, j, pixels[i][j].Color)
-		}
-	}
-}
+// func FrameHandler(lg leds.LEDGridInterface) {
+// 	for i := range pixels {
+// 		for j := range pixels[i] {
+// 			lg.SetLED(i, j, pixels[i][j].Color)
+// 		}
+// 	}
+// }
 
-func SetAnimationByIndex(index int) {
-	if index >= 0 && index < len(animations) {
-		activeAnimationChan <- index
-	}
-}
+// func SetAnimationByIndex(index int) {
+// 	if index >= 0 && index < len(animations) {
+// 		activeAnimationChan <- index
+// 	}
+// }
 
-func SetAnimationByName(name string) {
-	for i, animation := range animations {
-		if animation.Key == name {
-			activeAnimationChan <- i
-			break
-		}
-	}
-}
+// func SetAnimationByName(name string) {
+// 	for i, animation := range animations {
+// 		if animation.Key == name {
+// 			activeAnimationChan <- i
+// 			break
+// 		}
+// 	}
+// }
 
-func PreviousAnimation() {
-	activeAnimationChan <- (activeAnimationIndex + len(animations) - 1) % len(animations)
-}
+// func PreviousAnimation() {
+// 	activeAnimationChan <- (activeAnimationIndex + len(animations) - 1) % len(animations)
+// }
 
-func NextAnimation() {
-	activeAnimationChan <- (activeAnimationIndex + 1) % len(animations)
-}
+// func NextAnimation() {
+// 	activeAnimationChan <- (activeAnimationIndex + 1) % len(animations)
+// }

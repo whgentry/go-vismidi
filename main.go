@@ -6,8 +6,9 @@ import (
 
 	"github.com/nsf/termbox-go"
 	"github.com/whgentry/gomidi-led/animations"
-	"github.com/whgentry/gomidi-led/keyboard"
+	"github.com/whgentry/gomidi-led/control"
 	"github.com/whgentry/gomidi-led/leds"
+	"github.com/whgentry/gomidi-led/midi"
 )
 
 var midiPort = 0
@@ -27,6 +28,28 @@ func main() {
 	defer termbox.Close()
 
 	_, NumLEDPerCol = termbox.Size()
+
+	// Create Control Channels
+	midiEventChan := make(chan midi.MIDIEvent)
+
+	midiListener := midi.PianoKeyboardDefault
+
+	midiCB := control.IOBlock[any, midi.MIDIEvent]{
+		Input:  nil,
+		Output: midiEventChan,
+		Processors: []control.ProcessInterface[any, midi.MIDIEvent]{
+			midiListener,
+		},
+	}
+
+	animationCB := control.IOBlock[midi.MIDIEvent, any]{
+		Input:      midiEventChan,
+		Output:     nil,
+		Processors: animations.Animations,
+	}
+
+	midiCB.Start(ctx)
+	animationCB.Start(ctx)
 
 	// Input and output structures
 	ledGrid = leds.NewVirtualLEDGrid(NumLEDPerCol, keyboard.KeyCount)

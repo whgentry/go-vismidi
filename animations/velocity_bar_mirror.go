@@ -10,7 +10,6 @@ import (
 
 var VelocityBarMirror = &Animation{
 	Name:        "Velocity Bars Mirrored",
-	Key:         "velocity-bars-mirror",
 	Description: "Bars go up and down corresponding to the velocity of the note starting in the middle",
 	Run: func(ctx context.Context, settings Settings) {
 		defer wg.Done()

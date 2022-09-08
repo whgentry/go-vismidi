@@ -9,7 +9,6 @@ import (
 
 var VelocityBar = &Animation{
 	Name:        "Velocity Bars",
-	Key:         "velocity-bars",
 	Description: "Bars go up corresponding to the velocity of the note",
 	Run: func(ctx context.Context, settings Settings) {
 		defer wg.Done()
