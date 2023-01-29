@@ -28,16 +28,16 @@ type MIDIState struct {
 	MinVelocity int
 }
 
-func NewMIDIState(ml MIDIListener) *MIDIState {
+func NewMIDIState(keyCount int, keyOffset int) *MIDIState {
 	ms := &MIDIState{
-		Keys:        make([]*KeyInfo, ml.KeyCount),
+		Keys:        make([]*KeyInfo, keyCount),
 		MaxVelocity: 51,
 		MinVelocity: 50,
 	}
 	for i := range ms.Keys {
 		ms.Keys[i] = &KeyInfo{
 			MIDIState: ms,
-			NoteName:  string(midi.Note(i + ml.KeyOffset)),
+			NoteName:  string(midi.Note(i + keyOffset)),
 			StartTime: time.Now(),
 			Index:     i,
 		}

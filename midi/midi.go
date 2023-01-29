@@ -30,6 +30,10 @@ func (m *MIDIListener) MidiToKeyboardIndex(key uint8) int {
 	return int(key) - m.KeyOffset
 }
 
+func (m MIDIListener) Name() string {
+	return "MIDI Listener"
+}
+
 func (m MIDIListener) Run(ctx context.Context, _ chan any, output chan MIDIEvent) {
 	defer midi.CloseDriver()
 
@@ -54,6 +58,8 @@ func (m MIDIListener) Run(ctx context.Context, _ chan any, output chan MIDIEvent
 			}
 		case msg.GetNoteEnd(&ch, &key):
 			output <- MIDIEvent{
+				KeyIndex:   m.MidiToKeyboardIndex(key),
+				TimeStamp:  time.Now(),
 				KeyPressed: false,
 			}
 		default:

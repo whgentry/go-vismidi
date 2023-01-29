@@ -13,8 +13,6 @@ import (
 
 var midiPort = 0
 var NumLEDPerCol = 70
-var ledGrid leds.LEDGridInterface
-var kboard *keyboard.Keyboard
 var frameRate = 60
 
 func main() {
@@ -29,40 +27,39 @@ func main() {
 
 	_, NumLEDPerCol = termbox.Size()
 
+	// Input and output structures
+	animations.Initialize(NumLEDPerCol, midi.PianoKeyboardDefault.KeyCount)
+	leds.Initialize(NumLEDPerCol, midi.PianoKeyboardDefault.KeyCount, frameRate)
+
 	// Create Control Channels
 	midiEventChan := make(chan midi.MIDIEvent)
+	animationFrameChan := make(chan animations.PixelStateFrame)
 
 	midiListener := midi.PianoKeyboardDefault
-
-	midiCB := control.IOBlock[any, midi.MIDIEvent]{
-		Input:  nil,
-		Output: midiEventChan,
-		Processors: []control.ProcessInterface[any, midi.MIDIEvent]{
+	midiCB := control.NewIOBlock(
+		nil,
+		midiEventChan,
+		[]control.ProcessInterface[any, midi.MIDIEvent]{
 			midiListener,
 		},
-	}
+	)
 
-	animationCB := control.IOBlock[midi.MIDIEvent, any]{
-		Input:      midiEventChan,
-		Output:     nil,
-		Processors: animations.Animations,
-	}
+	animationCB := control.NewIOBlock(
+		midiEventChan,
+		animationFrameChan,
+		animations.Animations,
+	)
 
+	ledCB := control.NewIOBlock(
+		animationFrameChan,
+		nil,
+		leds.Displays,
+	)
+
+	// Start control blocks
 	midiCB.Start(ctx)
 	animationCB.Start(ctx)
-
-	// Input and output structures
-	ledGrid = leds.NewVirtualLEDGrid(NumLEDPerCol, keyboard.KeyCount)
-	kboard = keyboard.NewKeyboard()
-
-	// Animation handling
-	animations.Initialize(NumLEDPerCol, keyboard.KeyCount, frameRate, kboard)
-	defer animations.Close()
-	animations.SetAnimationByIndex(0)
-
-	// Core functionality routines
-	go keyboard.HandleMidi(ctx, kboard, midiPort)
-	go leds.HandleRefresh(ctx, ledGrid, 60, animations.FrameHandler)
+	ledCB.Start(ctx)
 
 	termbox.SetInputMode(termbox.InputEsc)
 	for {
@@ -70,9 +67,9 @@ func main() {
 		case termbox.EventKey:
 			switch ev.Key {
 			case termbox.KeyArrowRight, termbox.KeySpace:
-				animations.NextAnimation()
+				animationCB.SetActive("Flowing Notes")
 			case termbox.KeyArrowLeft:
-				animations.PreviousAnimation()
+				animationCB.SetActive("Velocity Bar")
 			case termbox.KeyEsc, termbox.KeyCtrlC:
 				os.Exit(0)
 			}

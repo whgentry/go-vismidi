@@ -4,46 +4,49 @@ import (
 	"context"
 	"time"
 
-	"github.com/whgentry/gomidi-led/leds"
 	"github.com/whgentry/gomidi-led/midi"
 )
 
 var FlowingNotes = &Animation{
-	Name:        "Flowing Notes",
+	name:        "Flowing Notes",
 	Description: "Notes flow from the bottom upwards",
-	Settings: Settings{
-		CommonSettings: DefaultCommonSettings,
-	},
+	Settings:    flowingNotesSettings,
+	run:         flowingNotesRun,
 }
 
-func (a Animation) Run(ctx context.Context, input chan midi.MIDIEvent, _ chan any) {
-	defer wg.Done()
+var flowingNotesSettings = &Settings{
+	CommonSettings: DefaultCommonSettings,
+}
+
+func flowingNotesRun(ctx context.Context, input chan midi.MIDIEvent, out chan PixelStateFrame) {
+	settings := flowingNotesSettings
 	speed := time.NewTicker(50 * time.Millisecond)
 	for {
 		select {
-		case me := <-input:
-
 		case <-speed.C:
-			for i := len(pixels) - 1; i >= 0; i-- {
-				for j, ps := range pixels[i] {
+			for i := len(frame.Pixels) - 1; i >= 0; i-- {
+				for j, ps := range frame.Pixels[i] {
 					// Moves the bar up the column
 					if i > 0 {
-						pixels[i][j].Intensity = pixels[i-1][j].Intensity
+						frame.Pixels[i][j].Intensity = frame.Pixels[i-1][j].Intensity
 					} else {
-						if kboard.Keys[j].IsNotePressed {
-							pixels[i][j].Intensity = kboard.Keys[j].GetAdjustedVelocityRatio()
+						if midiState.Keys[j].IsNotePressed {
+							frame.Pixels[i][j].Intensity = midiState.Keys[j].GetAdjustedVelocityRatio()
 						} else {
-							pixels[i][j].Intensity = 0
+							frame.Pixels[i][j].Intensity = 0
 						}
 					}
 					// Sets pixel color based on intensity
 					if ps.Intensity > 0 {
-						ps.Color = a.Settings.LowerColor.BlendHsv(a.Settings.UpperColor, ps.Intensity)
+						ps.Color = settings.CommonSettings.LowerColor.BlendHsv(settings.CommonSettings.UpperColor, ps.Intensity)
 					} else {
-						ps.Color = leds.ColorOff()
+						ps.Color = ColorOff
 					}
 				}
 			}
+			out <- frame
+		case me := <-input:
+			updateKeys(me)
 		case <-ctx.Done():
 			return
 		}
