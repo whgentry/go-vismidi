@@ -87,4 +87,5 @@ func updateKeys(me midi.MIDIEvent) {
 	} else {
 		k.ReleaseTime = me.TimeStamp
 	}
+	midiState.UpdateVelocityRange(me.Velocity)
 }

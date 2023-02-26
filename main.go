@@ -32,8 +32,8 @@ func main() {
 	leds.Initialize(NumLEDPerCol, midi.PianoKeyboardDefault.KeyCount, frameRate)
 
 	// Create Control Channels
-	midiEventChan := make(chan midi.MIDIEvent)
-	animationFrameChan := make(chan animations.PixelStateFrame)
+	midiEventChan := make(chan midi.MIDIEvent, 100)
+	animationFrameChan := make(chan animations.PixelStateFrame, 100)
 
 	midiListener := midi.PianoKeyboardDefault
 	midiCB := control.NewIOBlock(

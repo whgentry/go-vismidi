@@ -28,17 +28,17 @@ func flowingNotesRun(ctx context.Context, input chan midi.MIDIEvent, out chan Pi
 				for j, ps := range frame.Pixels[i] {
 					// Moves the bar up the column
 					if i > 0 {
-						frame.Pixels[i][j].Intensity = frame.Pixels[i-1][j].Intensity
+						ps.Intensity = frame.Pixels[i-1][j].Intensity
 					} else {
 						if midiState.Keys[j].IsNotePressed {
-							frame.Pixels[i][j].Intensity = midiState.Keys[j].GetAdjustedVelocityRatio()
+							ps.Intensity = midiState.Keys[j].GetAdjustedVelocityRatio()
 						} else {
-							frame.Pixels[i][j].Intensity = 0
+							ps.Intensity = 0
 						}
 					}
 					// Sets pixel color based on intensity
 					if ps.Intensity > 0 {
-						ps.Color = settings.CommonSettings.LowerColor.BlendHsv(settings.CommonSettings.UpperColor, ps.Intensity)
+						ps.Color = settings.LowerColor.BlendHsv(settings.UpperColor, ps.Intensity)
 					} else {
 						ps.Color = ColorOff
 					}

@@ -45,12 +45,12 @@ func NewMIDIState(keyCount int, keyOffset int) *MIDIState {
 	return ms
 }
 
-func (k *MIDIState) UpdateVelocityRange(vel uint8) {
-	if vel > uint8(k.MaxVelocity) {
-		k.MaxVelocity = int(vel)
+func (k *MIDIState) UpdateVelocityRange(vel int) {
+	if vel > k.MaxVelocity {
+		k.MaxVelocity = vel
 	}
-	if vel < uint8(k.MinVelocity) {
-		k.MinVelocity = int(vel)
+	if vel < k.MinVelocity {
+		k.MinVelocity = vel
 	}
 }
 
