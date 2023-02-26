@@ -61,6 +61,7 @@ func main() {
 	animationCB.Start(ctx)
 	ledCB.Start(ctx)
 
+	// TODO Add methods to controlblock to allow rotation through processor
 	termbox.SetInputMode(termbox.InputEsc)
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
