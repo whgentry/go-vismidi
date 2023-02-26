@@ -40,8 +40,10 @@ func velocityBarMirrorRun(ctx context.Context, input chan midi.MIDIEvent, out ch
 					} else {
 						ps.Color = settings.LowerColor.BlendHsv(settings.UpperColor, ps.Intensity)
 					}
+					frame.Pixels[row][col] = ps
 				}
 			}
+			out <- frame
 		case me := <-input:
 			updateKeys(me)
 		case <-ctx.Done():

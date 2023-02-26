@@ -38,8 +38,10 @@ func velocityBarRun(ctx context.Context, input chan midi.MIDIEvent, out chan Pix
 					} else if midiState.Keys[col].IsNotePressed {
 						ps.Color = settings.LowerColor.BlendHsv(settings.UpperColor, float64(row)/float64(frame.RowCount))
 					}
+					frame.Pixels[row][col] = ps
 				}
 			}
+			out <- frame
 		case me := <-input:
 			updateKeys(me)
 		case <-ctx.Done():

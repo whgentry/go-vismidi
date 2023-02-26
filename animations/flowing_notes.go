@@ -42,6 +42,7 @@ func flowingNotesRun(ctx context.Context, input chan midi.MIDIEvent, out chan Pi
 					} else {
 						ps.Color = ColorOff
 					}
+					frame.Pixels[i][j] = ps
 				}
 			}
 			out <- frame

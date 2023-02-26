@@ -19,10 +19,13 @@ func (lg *VirtualLEDGrid) Run(ctx context.Context, input chan animations.PixelSt
 		case state := <-input:
 			lg.state = state
 		case <-ticker.C:
+			termbox.SetOutputMode(termbox.OutputRGB)
+			termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 			for i := range lg.state.Pixels {
 				for j, led := range lg.state.Pixels[i] {
 					if !IsColorOff(led.Color) {
 						r, g, b := led.Color.RGB255()
+						// fmt.Println(r, g, b)
 						fg := termbox.RGBToAttribute(r, g, b)
 						bg := termbox.Attribute(termbox.ColorDefault)
 						_, height := termbox.Size()
@@ -31,6 +34,7 @@ func (lg *VirtualLEDGrid) Run(ctx context.Context, input chan animations.PixelSt
 					}
 				}
 			}
+			termbox.Flush()
 		case <-ctx.Done():
 			return
 		}
