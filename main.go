@@ -5,10 +5,10 @@ import (
 	"os"
 
 	"github.com/nsf/termbox-go"
-	"github.com/whgentry/gomidi-led/animation"
-	"github.com/whgentry/gomidi-led/control"
-	"github.com/whgentry/gomidi-led/led"
-	"github.com/whgentry/gomidi-led/midi"
+	"github.com/whgentry/go-vismidi/animation"
+	"github.com/whgentry/go-vismidi/control"
+	"github.com/whgentry/go-vismidi/led"
+	"github.com/whgentry/go-vismidi/midi"
 )
 
 var midiPort = 0
@@ -35,13 +35,10 @@ func main() {
 	midiEventChan := make(chan midi.MIDIEvent, 100)
 	animationFrameChan := make(chan animation.PixelStateFrame, 100)
 
-	midiListener := midi.PianoKeyboardDefault
 	midiCB := control.NewIOBlock(
 		nil,
 		midiEventChan,
-		[]control.ProcessInterface[any, midi.MIDIEvent]{
-			midiListener,
-		},
+		midi.Inputs,
 	)
 
 	animationCB := control.NewIOBlock(

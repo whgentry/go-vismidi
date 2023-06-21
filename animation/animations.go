@@ -4,8 +4,8 @@ import (
 	"context"
 
 	colorful "github.com/lucasb-eyer/go-colorful"
-	"github.com/whgentry/gomidi-led/control"
-	"github.com/whgentry/gomidi-led/midi"
+	"github.com/whgentry/go-vismidi/control"
+	"github.com/whgentry/go-vismidi/midi"
 )
 
 type PixelState struct {

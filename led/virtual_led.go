@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/nsf/termbox-go"
-	"github.com/whgentry/gomidi-led/animation"
+	"github.com/whgentry/go-vismidi/animation"
 )
 
 type VirtualLEDGrid struct {

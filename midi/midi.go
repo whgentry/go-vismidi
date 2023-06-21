@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/whgentry/go-vismidi/control"
 	"gitlab.com/gomidi/midi/v2"
 	"gitlab.com/gomidi/midi/v2/drivers"
 	_ "gitlab.com/gomidi/midi/v2/drivers/rtmididrv" // autoregisters driver
@@ -23,6 +24,11 @@ type MIDIListener struct {
 	KeyCount  int
 }
 
+var Inputs = []control.ProcessInterface[any, MIDIEvent]{
+	PianoKeyboardDefault,
+	FileReaderDefault,
+}
+
 func (m *MIDIListener) MidiToKeyboardIndex(key uint8) int {
 	if int(key) < m.KeyOffset {
 		return -1
@@ -30,11 +36,11 @@ func (m *MIDIListener) MidiToKeyboardIndex(key uint8) int {
 	return int(key) - m.KeyOffset
 }
 
-func (m MIDIListener) Name() string {
+func (m *MIDIListener) Name() string {
 	return "MIDI Listener"
 }
 
-func (m MIDIListener) Run(ctx context.Context, _ chan any, output chan MIDIEvent) {
+func (m *MIDIListener) Run(ctx context.Context, _ chan any, output chan MIDIEvent) {
 	defer midi.CloseDriver()
 
 	var in drivers.In

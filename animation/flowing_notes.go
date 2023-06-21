@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/whgentry/gomidi-led/midi"
+	"github.com/whgentry/go-vismidi/midi"
 )
 
 var FlowingNotes = &Animation{

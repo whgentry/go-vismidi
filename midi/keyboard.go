@@ -6,7 +6,7 @@ import (
 	"gitlab.com/gomidi/midi/v2"
 )
 
-var PianoKeyboardDefault = MIDIListener{
+var PianoKeyboardDefault = &MIDIListener{
 	Port:      0,
 	KeyOffset: 21,
 	KeyCount:  88,

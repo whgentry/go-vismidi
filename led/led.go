@@ -4,8 +4,8 @@ import (
 	"errors"
 
 	"github.com/lucasb-eyer/go-colorful"
-	"github.com/whgentry/gomidi-led/animation"
-	"github.com/whgentry/gomidi-led/control"
+	"github.com/whgentry/go-vismidi/animation"
+	"github.com/whgentry/go-vismidi/control"
 )
 
 var (
