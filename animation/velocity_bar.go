@@ -1,4 +1,4 @@
-package animations
+package animation
 
 import (
 	"context"
