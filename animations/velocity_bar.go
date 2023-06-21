@@ -4,38 +4,48 @@ import (
 	"context"
 	"time"
 
-	"github.com/whgentry/gomidi-led/leds"
+	"github.com/whgentry/gomidi-led/midi"
 )
 
 var VelocityBar = &Animation{
-	Name:        "Velocity Bars",
-	Key:         "velocity-bars",
+	name:        "Velocity Bar",
 	Description: "Bars go up corresponding to the velocity of the note",
-	Run: func(ctx context.Context, settings Settings) {
-		defer wg.Done()
-		frameTicker := time.NewTicker(frameDuration)
-		for {
-			select {
-			case <-frameTicker.C:
-				for row := range pixels {
-					for col, ps := range pixels[row] {
-						// Decay Intensity Exponentially
-						if kboard.Keys[col].IsNotePressed {
-							ps.Intensity = kboard.Keys[col].GetAdjustedVelocityRatio()
-						} else {
-							ps.Intensity *= 0.95
-						}
-						// Determine led color on intensity
-						if row >= int(ps.Intensity*float64(numRows)) {
-							ps.Color = leds.ColorOff()
-						} else if kboard.Keys[col].IsNotePressed {
-							ps.Color = settings.LowerColor.BlendHsv(settings.UpperColor, float64(row)/float64(numRows))
-						}
+	Settings:    velocityBarSettings,
+	run:         velocityBarRun,
+}
+
+var velocityBarSettings = &Settings{
+	CommonSettings: DefaultCommonSettings,
+}
+
+func velocityBarRun(ctx context.Context, input chan midi.MIDIEvent, out chan PixelStateFrame) {
+	settings := velocityBarSettings
+	frameTicker := time.NewTicker(50 * time.Millisecond)
+	for {
+		select {
+		case <-frameTicker.C:
+			for row := range frame.Pixels {
+				for col, ps := range frame.Pixels[row] {
+					// Decay Intensity Exponentially
+					if midiState.Keys[col].IsNotePressed {
+						ps.Intensity = midiState.Keys[col].GetAdjustedVelocityRatio()
+					} else {
+						ps.Intensity *= 0.95
 					}
+					// Determine led color on intensity
+					if row >= int(ps.Intensity*float64(frame.RowCount)) {
+						ps.Color = ColorOff
+					} else if midiState.Keys[col].IsNotePressed {
+						ps.Color = settings.LowerColor.BlendHsv(settings.UpperColor, float64(row)/float64(frame.RowCount))
+					}
+					frame.Pixels[row][col] = ps
 				}
-			case <-ctx.Done():
-				return
 			}
+			out <- frame
+		case me := <-input:
+			updateKeys(me)
+		case <-ctx.Done():
+			return
 		}
-	},
+	}
 }

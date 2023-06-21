@@ -2,155 +2,90 @@ package animations
 
 import (
 	"context"
-	"sync"
-	"time"
 
-	"github.com/lucasb-eyer/go-colorful"
-	"github.com/whgentry/gomidi-led/keyboard"
-	"github.com/whgentry/gomidi-led/leds"
+	colorful "github.com/lucasb-eyer/go-colorful"
+	"github.com/whgentry/gomidi-led/control"
+	"github.com/whgentry/gomidi-led/midi"
 )
-
-type RunFunc func(ctx context.Context, settings Settings)
 
 type PixelState struct {
 	Color     colorful.Color
 	Intensity float64
 }
 
-type Settings struct {
+type PixelStateFrame struct {
+	Pixels   [][]PixelState
+	RowCount int
+	ColCount int
+}
+
+type CommonSettings struct {
 	LowerColor colorful.Color
 	UpperColor colorful.Color
 }
 
+type Settings struct {
+	*CommonSettings
+}
+
 type Animation struct {
-	Name        string
-	Key         string
 	Description string
-	Settings    Settings
-	Run         RunFunc
+	Settings    *Settings
+	name        string
+	run         control.RunFunc[midi.MIDIEvent, PixelStateFrame]
+}
+
+func (a *Animation) Run(ctx context.Context, input chan midi.MIDIEvent, out chan PixelStateFrame) {
+	a.run(ctx, input, out)
+}
+
+func (a *Animation) Name() string {
+	return a.name
 }
 
 var (
-	kboard        *keyboard.Keyboard
-	numRows       int
-	numCols       int
-	pixels        [][]*PixelState
-	frameDuration time.Duration
+	midiState *midi.MIDIState
+	frame     PixelStateFrame
+	ColorOff  = colorful.Color{R: 0, G: 0, B: 0}
 
-	cancelActive  func()          = func() {}
-	ctxActive     context.Context = nil
-	cancelControl func()          = func() {}
-	ctxControl    context.Context = nil
+	DefaultCommonSettings = &CommonSettings{
+		LowerColor: colorful.FastLinearRgb(0, 1, 0),
+		UpperColor: colorful.FastLinearRgb(1, 0, 0),
+	}
 
-	wg                   sync.WaitGroup
-	activeAnimationIndex int
-	activeAnimationChan  chan int
-	stopAnimation        chan bool
-
-	CommonSettings Settings
+	Animations = []control.ProcessInterface[midi.MIDIEvent, PixelStateFrame]{
+		VelocityBar,
+		VelocityBarMirror,
+		FlowingNotes,
+	}
 )
-
-var animations = []*Animation{
-	VelocityBar,
-	VelocityBarMirror,
-	FlowingNotes,
-}
 
 func (ps *PixelState) Clear() {
 	ps.Color = colorful.Color{R: 0, G: 0, B: 0}
 	ps.Intensity = 0
 }
 
-func Initialize(rows int, cols int, rate int, k *keyboard.Keyboard) {
-	frameDuration = time.Second / time.Duration(rate)
-	numRows = rows
-	numCols = cols
-	kboard = k
-	pixels = make([][]*PixelState, numRows)
-	for i := range pixels {
-		pixels[i] = make([]*PixelState, numCols)
-		for j := range pixels[i] {
-			pixels[i][j] = &PixelState{}
-		}
+func Initialize(rows int, cols int) {
+	frame = PixelStateFrame{
+		RowCount: rows,
+		ColCount: cols,
+		Pixels:   make([][]PixelState, rows),
+	}
+	for i := range frame.Pixels {
+		frame.Pixels[i] = make([]PixelState, cols)
 	}
 
-	// Initialize Settings
-	CommonSettings = Settings{
-		LowerColor: colorful.FastLinearRgb(0, 1, 0),
-		UpperColor: colorful.FastLinearRgb(1, 0, 0),
+	midiState = midi.NewMIDIState(cols, midi.PianoKeyboardDefault.KeyOffset)
+}
+
+func updateKeys(me midi.MIDIEvent) {
+	k := midiState.Keys[me.KeyIndex]
+	k.IsNotePressed = me.KeyPressed
+	k.Velocity = me.Velocity
+	if k.IsNotePressed {
+		k.StartTime = me.TimeStamp
+	} else {
+		k.ReleaseTime = me.TimeStamp
 	}
-	for _, animation := range animations {
-		animation.Settings = CommonSettings
-	}
-
-	activeAnimationChan = make(chan int)
-	ctxControl, cancelControl = context.WithCancel(context.Background())
-	go HandleAnimationControl(ctxControl)
-}
-
-func Close() {
-	cancelControl()
-}
-
-func HandleAnimationControl(ctx context.Context) {
-	stop := func() {
-		if ctxActive != nil {
-			wg.Add(1)
-			cancelActive()
-			wg.Wait()
-			ctxActive = nil
-			for i := range pixels {
-				for _, ps := range pixels[i] {
-					ps.Clear()
-				}
-			}
-		}
-	}
-	for {
-		select {
-		case <-stopAnimation:
-			stop()
-		case activeAnimationIndex = <-activeAnimationChan:
-			stop()
-			ctxActive, cancelActive = context.WithCancel(ctxControl)
-			go animations[activeAnimationIndex].Run(ctxActive, animations[activeAnimationIndex].Settings)
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func StopAnimation() {
-	stopAnimation <- true
-}
-
-func FrameHandler(lg leds.LEDGridInterface) {
-	for i := range pixels {
-		for j := range pixels[i] {
-			lg.SetLED(i, j, pixels[i][j].Color)
-		}
-	}
-}
-
-func SetAnimationByIndex(index int) {
-	if index >= 0 && index < len(animations) {
-		activeAnimationChan <- index
-	}
-}
-
-func SetAnimationByName(name string) {
-	for i, animation := range animations {
-		if animation.Key == name {
-			activeAnimationChan <- i
-			break
-		}
-	}
-}
-
-func PreviousAnimation() {
-	activeAnimationChan <- (activeAnimationIndex + len(animations) - 1) % len(animations)
-}
-
-func NextAnimation() {
-	activeAnimationChan <- (activeAnimationIndex + 1) % len(animations)
+	midiState.UpdateVelocityRange(me.Velocity)
 }

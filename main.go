@@ -6,14 +6,13 @@ import (
 
 	"github.com/nsf/termbox-go"
 	"github.com/whgentry/gomidi-led/animations"
-	"github.com/whgentry/gomidi-led/keyboard"
+	"github.com/whgentry/gomidi-led/control"
 	"github.com/whgentry/gomidi-led/leds"
+	"github.com/whgentry/gomidi-led/midi"
 )
 
 var midiPort = 0
 var NumLEDPerCol = 70
-var ledGrid leds.LEDGridInterface
-var kboard *keyboard.Keyboard
 var frameRate = 60
 
 func main() {
@@ -29,27 +28,49 @@ func main() {
 	_, NumLEDPerCol = termbox.Size()
 
 	// Input and output structures
-	ledGrid = leds.NewVirtualLEDGrid(NumLEDPerCol, keyboard.KeyCount)
-	kboard = keyboard.NewKeyboard()
+	animations.Initialize(NumLEDPerCol, midi.PianoKeyboardDefault.KeyCount)
+	leds.Initialize(NumLEDPerCol, midi.PianoKeyboardDefault.KeyCount, frameRate)
 
-	// Animation handling
-	animations.Initialize(NumLEDPerCol, keyboard.KeyCount, frameRate, kboard)
-	defer animations.Close()
-	animations.SetAnimationByIndex(0)
+	// Create Control Channels
+	midiEventChan := make(chan midi.MIDIEvent, 100)
+	animationFrameChan := make(chan animations.PixelStateFrame, 100)
 
-	// Core functionality routines
-	go keyboard.HandleMidi(ctx, kboard, midiPort)
-	go leds.HandleRefresh(ctx, ledGrid, 60, animations.FrameHandler)
+	midiListener := midi.PianoKeyboardDefault
+	midiCB := control.NewIOBlock(
+		nil,
+		midiEventChan,
+		[]control.ProcessInterface[any, midi.MIDIEvent]{
+			midiListener,
+		},
+	)
 
+	animationCB := control.NewIOBlock(
+		midiEventChan,
+		animationFrameChan,
+		animations.Animations,
+	)
+
+	ledCB := control.NewIOBlock(
+		animationFrameChan,
+		nil,
+		leds.Displays,
+	)
+
+	// Start control blocks
+	midiCB.Start(ctx)
+	animationCB.Start(ctx)
+	ledCB.Start(ctx)
+
+	// TODO Add methods to controlblock to allow rotation through processor
 	termbox.SetInputMode(termbox.InputEsc)
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
 		case termbox.EventKey:
 			switch ev.Key {
 			case termbox.KeyArrowRight, termbox.KeySpace:
-				animations.NextAnimation()
+				animationCB.Next()
 			case termbox.KeyArrowLeft:
-				animations.PreviousAnimation()
+				animationCB.Previous()
 			case termbox.KeyEsc, termbox.KeyCtrlC:
 				os.Exit(0)
 			}
