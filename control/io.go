@@ -21,29 +21,31 @@ type ProcessInterface[IN any, OUT any] interface {
 }
 
 type IOBlock[IN any, OUT any] struct {
-	Input      chan IN
-	Output     chan OUT
-	Processors map[string]ProcessInterface[IN, OUT]
-	active     ProcessInterface[IN, OUT]
-	ctx        context.Context
-	cancel     func()
-	wg         sync.WaitGroup
-	mutex      sync.Mutex
-	state      State
+	Input            chan IN
+	Output           chan OUT
+	ProcessorIndices map[string]int
+	Processors       []ProcessInterface[IN, OUT]
+	active           ProcessInterface[IN, OUT]
+	ctx              context.Context
+	cancel           func()
+	wg               sync.WaitGroup
+	mutex            sync.Mutex
+	state            State
 }
 
 func NewIOBlock[IN any, OUT any](in chan IN, out chan OUT, procs []ProcessInterface[IN, OUT]) *IOBlock[IN, OUT] {
 	io := &IOBlock[IN, OUT]{
-		Input:      in,
-		Output:     out,
-		Processors: map[string]ProcessInterface[IN, OUT]{},
-		active:     procs[0],
-		state:      Stopped,
+		Input:            in,
+		Output:           out,
+		Processors:       procs,
+		ProcessorIndices: map[string]int{},
+		active:           procs[0],
+		state:            Stopped,
 	}
 
 	// Populate process map
-	for _, p := range procs {
-		io.Processors[p.Name()] = p
+	for i, p := range procs {
+		io.ProcessorIndices[p.Name()] = i
 	}
 
 	return io
@@ -92,6 +94,30 @@ func (io *IOBlock[IN, OUT]) Stop() {
 	io.stop()
 }
 
+func (io *IOBlock[IN, OUT]) Next() {
+	io.mutex.Lock()
+	defer io.mutex.Unlock()
+
+	currentIndex := io.ProcessorIndices[io.active.Name()]
+	nextIndex := (currentIndex + 1) % len(io.Processors)
+
+	io.stop()
+	io.active = io.Processors[nextIndex]
+	io.start()
+}
+
+func (io *IOBlock[IN, OUT]) Previous() {
+	io.mutex.Lock()
+	defer io.mutex.Unlock()
+
+	currentIndex := io.ProcessorIndices[io.active.Name()]
+	nextIndex := (currentIndex + len(io.Processors) - 1) % len(io.Processors)
+
+	io.stop()
+	io.active = io.Processors[nextIndex]
+	io.start()
+}
+
 // Sets the active processor and starts if not started
 func (io *IOBlock[IN, OUT]) SetActive(name string) error {
 	io.mutex.Lock()
@@ -107,10 +133,12 @@ func (io *IOBlock[IN, OUT]) SetActive(name string) error {
 		}
 	}
 
-	proc, ok := io.Processors[name]
+	procIndex, ok := io.ProcessorIndices[name]
 	if !ok {
 		return errors.New("process name doesn't exist")
 	}
+
+	proc := io.Processors[procIndex]
 
 	// Stop current process if running
 	if io.state == Running {

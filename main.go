@@ -68,9 +68,9 @@ func main() {
 		case termbox.EventKey:
 			switch ev.Key {
 			case termbox.KeyArrowRight, termbox.KeySpace:
-				animationCB.SetActive("Flowing Notes")
+				animationCB.Next()
 			case termbox.KeyArrowLeft:
-				animationCB.SetActive("Velocity Bar")
+				animationCB.Previous()
 			case termbox.KeyEsc, termbox.KeyCtrlC:
 				os.Exit(0)
 			}
