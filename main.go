@@ -5,9 +5,9 @@ import (
 	"os"
 
 	"github.com/nsf/termbox-go"
-	"github.com/whgentry/gomidi-led/animations"
+	"github.com/whgentry/gomidi-led/animation"
 	"github.com/whgentry/gomidi-led/control"
-	"github.com/whgentry/gomidi-led/leds"
+	"github.com/whgentry/gomidi-led/led"
 	"github.com/whgentry/gomidi-led/midi"
 )
 
@@ -28,12 +28,12 @@ func main() {
 	_, NumLEDPerCol = termbox.Size()
 
 	// Input and output structures
-	animations.Initialize(NumLEDPerCol, midi.PianoKeyboardDefault.KeyCount)
-	leds.Initialize(NumLEDPerCol, midi.PianoKeyboardDefault.KeyCount, frameRate)
+	animation.Initialize(NumLEDPerCol, midi.PianoKeyboardDefault.KeyCount)
+	led.Initialize(NumLEDPerCol, midi.PianoKeyboardDefault.KeyCount, frameRate)
 
 	// Create Control Channels
 	midiEventChan := make(chan midi.MIDIEvent, 100)
-	animationFrameChan := make(chan animations.PixelStateFrame, 100)
+	animationFrameChan := make(chan animation.PixelStateFrame, 100)
 
 	midiListener := midi.PianoKeyboardDefault
 	midiCB := control.NewIOBlock(
@@ -47,13 +47,13 @@ func main() {
 	animationCB := control.NewIOBlock(
 		midiEventChan,
 		animationFrameChan,
-		animations.Animations,
+		animation.Animations,
 	)
 
 	ledCB := control.NewIOBlock(
 		animationFrameChan,
 		nil,
-		leds.Displays,
+		led.Displays,
 	)
 
 	// Start control blocks
