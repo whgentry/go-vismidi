@@ -19,9 +19,7 @@ type MIDIEvent struct {
 }
 
 type MIDIListener struct {
-	Port      int
-	KeyOffset int
-	KeyCount  int
+	Settings
 }
 
 var Inputs = []control.ProcessInterface[any, MIDIEvent]{

@@ -19,24 +19,15 @@ type PixelStateFrame struct {
 	ColCount int
 }
 
-type CommonSettings struct {
-	LowerColor colorful.Color
-	UpperColor colorful.Color
-}
-
-type Settings struct {
-	*CommonSettings
-}
-
 type Animation struct {
 	Description string
-	Settings    *Settings
+	Settings    *AnimationSettings
 	name        string
-	run         control.RunFunc[midi.MIDIEvent, PixelStateFrame]
+	run         func(context.Context, chan midi.MIDIEvent, chan PixelStateFrame, *AnimationSettings)
 }
 
 func (a *Animation) Run(ctx context.Context, input chan midi.MIDIEvent, out chan PixelStateFrame) {
-	a.run(ctx, input, out)
+	a.run(ctx, input, out, a.Settings)
 }
 
 func (a *Animation) Name() string {
@@ -47,11 +38,6 @@ var (
 	midiState *midi.MIDIState
 	frame     PixelStateFrame
 	ColorOff  = colorful.Color{R: 0, G: 0, B: 0}
-
-	DefaultCommonSettings = &CommonSettings{
-		LowerColor: colorful.FastLinearRgb(0, 1, 0),
-		UpperColor: colorful.FastLinearRgb(1, 0, 0),
-	}
 
 	Animations = []control.ProcessInterface[midi.MIDIEvent, PixelStateFrame]{
 		VelocityBar,

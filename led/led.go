@@ -12,17 +12,15 @@ var (
 	ErrLEDOutOfBounds = errors.New("led indicies are out of bounds")
 	rowCount          int
 	colCount          int
-	frameRate         int
 
 	Displays = []control.ProcessInterface[animation.PixelStateFrame, any]{
 		&VirtualLEDGrid{},
 	}
 )
 
-func Initialize(numRows int, numCols int, rate int) {
+func Initialize(numRows int, numCols int) {
 	rowCount = numRows
 	colCount = numCols
-	frameRate = rate
 }
 
 func ColorOff() colorful.Color {

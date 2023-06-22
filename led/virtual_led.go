@@ -13,7 +13,7 @@ type VirtualLEDGrid struct {
 }
 
 func (lg *VirtualLEDGrid) Run(ctx context.Context, input chan animation.PixelStateFrame, out chan any) {
-	ticker := time.NewTicker(time.Second / time.Duration(frameRate))
+	ticker := time.NewTicker(time.Second / time.Duration(packageSettings.FrameRate))
 	for {
 		select {
 		case state := <-input:

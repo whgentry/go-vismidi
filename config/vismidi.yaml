@@ -1,0 +1,35 @@
+---
+led:
+  FrameRate: 60
+midi:
+  Port:      0
+  KeyOffset: 21
+  KeyCount:  88
+animation:
+  FlowingNotes:
+    LowerColor:
+      R: 0.0
+      G: 1.0
+      B: 0.0
+    UpperColor:
+      R: 1.0
+      G: 0.0
+      B: 0.0
+	VelocityBar:
+    LowerColor:
+      R: 0.0
+      G: 1.0
+      B: 0.0
+    UpperColor:
+      R: 1.0
+      G: 0.0
+      B: 0.0
+	VelocityBarMirror:
+    LowerColor:
+      R: 0.0
+      G: 1.0
+      B: 0.0
+    UpperColor:
+      R: 1.0
+      G: 0.0
+      B: 0.0

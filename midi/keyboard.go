@@ -7,9 +7,11 @@ import (
 )
 
 var PianoKeyboardDefault = &MIDIListener{
-	Port:      0,
-	KeyOffset: 21,
-	KeyCount:  88,
+	Settings{
+		Port:      0,
+		KeyOffset: 21,
+		KeyCount:  88,
+	},
 }
 
 type KeyInfo struct {
